@@ -1,0 +1,11 @@
+services:
+  research:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    image: utakata_research_image
+    container_name: utakata_research_container
+    volumes:
+      - ../workspace:/workspace
+    working_dir: /workspace
+    tty: true
