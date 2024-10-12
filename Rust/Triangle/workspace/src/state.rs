@@ -124,7 +124,7 @@ impl<'a> State<'a> {
             cache: None
         });
 
-        let triangle = Triangle::new();
+        // let triangle = Triangle::new();
 
         /* let vertex_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
