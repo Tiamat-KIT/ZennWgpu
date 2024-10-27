@@ -1,0 +1,12 @@
+services:
+  utakata_rust_wgpu_devcontainer:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    image: utakata_rust_wgpu_devcontainer_image
+    container_name: utakata_rust_wgpu_devcontainer_container
+    volumes:
+      - ../workspace:/workspace
+    working_dir: /workspace
+    command: /bin/sh
+    tty: true

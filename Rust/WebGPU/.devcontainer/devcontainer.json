@@ -1,0 +1,26 @@
+{
+    "name": "utakata-rust-devcontaier-template",
+    "dockerComposeFile":"compose.yaml",
+    "service": "utakata_rust_wgpu_devcontainer",
+    "workspaceFolder": "/workspace",
+    "remoteUser": "utakata",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ktock.container-wasm",
+                "dtsvet.vscode-wasm",
+                "VectorGameExperts.rust-target-toggle",
+                "rust-lang.rust-analyzer",
+                "bungcip.better-toml",
+                "serayuzgur.crates",
+                "1YiB.rust-bundle",
+                "Zerotaskx.rust-extension-pack",
+                "jinxdash.prettier-rust",
+                "formulahendry.code-runner",
+                "kevinkyang.auto-comment-blocks",
+                "PolyMeilex.wgsl"
+            ]
+        }
+    },
+    "postStartCommand": "cargo init && cargo add env_logger@0.11.5 log@0.4.22 pollster@0.3.0 wgpu@22.0 && cargo add bytemuck@1.16 --features='derive' && cargo add winit@0.29 --features='rwh_05'"
+}

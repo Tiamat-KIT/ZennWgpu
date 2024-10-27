@@ -1,0 +1,18 @@
+[package]
+name = "workspace"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+env_logger = "0.11.5"
+log = "0.4.22"
+pollster = "0.3.0"
+wgpu = "22.0"
+bytemuck = { version = "1.16", features = [ "derive" ] }
+
+
+winit = { version = "0.29", features = ["rwh_05"] }
+
+[http]
+proxy = "http://wwwproxy.kanazawa-it.ac.jp:8080"
+check-revoke = false # SSL証明書の失効を確認しない
