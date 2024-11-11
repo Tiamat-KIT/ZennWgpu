@@ -1,9 +1,15 @@
-mod state;
+mod camera;
+mod colorful_triangle;
+mod pentagon;
+mod triangle;
+mod texture;
 
-use state::RenderState;
+
+use texture::state_with_texture;
+use triangle::state::StateBase;
 use winit::{
-    event::{self, *},
-    event_loop::{self, EventLoop},
+    event::*,
+    event_loop::EventLoop,
     keyboard::{KeyCode,PhysicalKey},
     window::WindowBuilder
 };
@@ -21,7 +27,8 @@ pub async fn run() {
     cfg_if::cfg_if! {
         if #[cfg(target_arch = "wasm32")] {
             std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-            console_log::init_with_level(log::Level::Warn).expect("Couldn't initialize logger");
+            //console_log::init_with_level(log::Level::Warn).expect("Couldn't initialize logger");
+            wasm_logger::init(wasm_logger::Config::default());
         } else {
             env_logger::init();
         }
@@ -41,19 +48,20 @@ pub async fn run() {
         window.request_inner_size(PhysicalSize::new(450,400));
         use winit::platform::web::WindowExtWebSys;
         web_sys::window()
-            .and_then(|win| win.document())
-            .and_then(|doc| {
-                let dst = doc.get_element_by_id("canvas")?;
-                let canvas = web_sys::Element::from(window.canvas()?);
-                dst.append_child(&canvas).ok()?;
-                Some(())
-            })
-            .expect("body要素にcanvas要素を追加することに失敗しました")
+        .and_then(|win| win.document())
+        .and_then(|doc| {
+            let dst = doc.get_element_by_id("canvas")?;
+            let canvas = web_sys::Element::from(window.canvas()?);
+            dst.append_child(&canvas).ok()?;
+            Some(())
+        })
+        .expect("Couldn't append canvas to document body.");
     }
-    let mut render_state = RenderState::new(&window).await;
 
+    let mut render_state = state_with_texture::VertexIndexWithRenderState::new(&window)
+        .await; 
     #[warn(unused_must_use)]
-    event_loop.run(
+    let event_loop = event_loop.run(
         move |
         event,
         control_flow
@@ -62,7 +70,7 @@ pub async fn run() {
                 Event::WindowEvent { 
                     window_id, 
                     ref event 
-                } if window_id == render_state.window.id() => {
+                } if window_id == render_state.window.id() => if !render_state.input(event) {
                     if !render_state.input(event) {
                         match event {
                             WindowEvent::CloseRequested | WindowEvent::KeyboardInput { 
@@ -79,8 +87,8 @@ pub async fn run() {
                             WindowEvent::RedrawRequested => {
                                 render_state.window.request_redraw();
                                 render_state.update();
-                                /* match render_state.render() {
-                                    Ok(_) => {}
+                                match render_state.render() {
+                                    Ok(_) => {},
                                     Err(
                                         wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated
                                     ) => render_state.resize(render_state.size),
@@ -90,7 +98,7 @@ pub async fn run() {
                                     Err(wgpu::SurfaceError::Timeout) => {
 
                                     }
-                                } */
+                                }
                             }
                             _ => {}
                         }
@@ -99,4 +107,6 @@ pub async fn run() {
                 _ => {}
             }
         });
+    event_loop
+        .expect("何かしらのエラーが出ました")
 }

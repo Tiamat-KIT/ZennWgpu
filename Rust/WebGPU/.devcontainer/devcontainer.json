@@ -18,7 +18,9 @@
                 "jinxdash.prettier-rust",
                 "formulahendry.code-runner",
                 "kevinkyang.auto-comment-blocks",
-                "PolyMeilex.wgsl"
+                "PolyMeilex.wgsl",
+                "noah-labrecque.wgsl-lang",
+                "wgsl-analyzer.wgsl-analyzer"
             ]
         }
     },
