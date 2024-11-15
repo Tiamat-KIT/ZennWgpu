@@ -3,6 +3,7 @@ mod colorful_triangle;
 mod pentagon;
 mod triangle;
 mod texture;
+mod instance;
 
 
 use texture::state_with_texture;
@@ -27,8 +28,8 @@ pub async fn run() {
     cfg_if::cfg_if! {
         if #[cfg(target_arch = "wasm32")] {
             std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-            //console_log::init_with_level(log::Level::Warn).expect("Couldn't initialize logger");
-            wasm_logger::init(wasm_logger::Config::default());
+            console_log::init_with_level(log::Level::Warn).expect("Couldn't initialize logger");
+            // wasm_logger::init(wasm_logger::Config::default());
         } else {
             env_logger::init();
         }
@@ -45,12 +46,13 @@ pub async fn run() {
     #[cfg(target_arch = "wasm32")] {
         use winit::dpi::PhysicalSize;
 
-        window.request_inner_size(PhysicalSize::new(450,400));
+        let _ = window.request_inner_size(PhysicalSize::new(450,400));
         use winit::platform::web::WindowExtWebSys;
+
         web_sys::window()
         .and_then(|win| win.document())
         .and_then(|doc| {
-            let dst = doc.get_element_by_id("canvas")?;
+            let dst = doc.get_element_by_id("example")?;
             let canvas = web_sys::Element::from(window.canvas()?);
             dst.append_child(&canvas).ok()?;
             Some(())
@@ -60,8 +62,9 @@ pub async fn run() {
 
     let mut render_state = state_with_texture::VertexIndexWithRenderState::new(&window)
         .await; 
+    let mut surface_configured = false;
     #[warn(unused_must_use)]
-    let event_loop = event_loop.run(
+    let _ = event_loop.run(
         move |
         event,
         control_flow
@@ -82,10 +85,15 @@ pub async fn run() {
                                 ..
                             } => control_flow.exit(),
                             WindowEvent::Resized(physical_size) => {
+                                surface_configured = true;
                                 render_state.resize(*physical_size);
                             }
                             WindowEvent::RedrawRequested => {
-                                render_state.window.request_redraw();
+                                // render_state.window.request_redraw();
+                                
+                                if !surface_configured {
+                                    return ;
+                                }
                                 render_state.update();
                                 match render_state.render() {
                                     Ok(_) => {},
@@ -106,7 +114,5 @@ pub async fn run() {
                 }
                 _ => {}
             }
-        });
-    event_loop
-        .expect("何かしらのエラーが出ました")
+        }).unwrap();
 }

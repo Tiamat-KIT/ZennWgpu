@@ -1,11 +1,6 @@
 use wgpu::{include_wgsl, util::DeviceExt};
 
-use crate::{
-    triangle::state::StateBase,
-    colorful_triangle::triangle_vertex::{VertexWithIndex, VertexWithIndexBase},
-};
-
-use super::texture;
+use super::{texture, with_texture_vertex::TextureWithVertex};
 
 
 pub struct VertexIndexWithRenderState<'a> {
@@ -25,16 +20,16 @@ pub struct VertexIndexWithRenderState<'a> {
 }
 
 
-impl<'a> StateBase<'a> for VertexIndexWithRenderState<'a> {
+impl<'a> crate::triangle::state::StateBase<'a> for VertexIndexWithRenderState<'a> {
     async fn new(window: &'a winit::window::Window) -> Self {
         let size = window.inner_size();
         
         let instance = wgpu::Instance::new(
             wgpu::InstanceDescriptor {
-                #[cfg(not(target_arch = "wasm32"))]
+                //#[cfg(not(target_arch = "wasm32"))]
                 backends: wgpu::Backends::PRIMARY,
-                #[cfg(target_arch = "wasm32")]
-                backends: wgpu::Backends::BROWSER_WEBGPU,
+                //#[cfg(target_arch = "wasm32")]
+                //backends: wgpu::Backends::GL, //BROWSER_WEBGPU,
                 ..Default::default()
             }
         );
@@ -54,7 +49,11 @@ impl<'a> StateBase<'a> for VertexIndexWithRenderState<'a> {
             &wgpu::DeviceDescriptor {
                 label: Some("device and queue"),
                 required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::default(),
+                required_limits: if cfg!(target_arch = "wasm32") {
+                    wgpu::Limits::downlevel_defaults()
+                } else {
+                    wgpu::Limits::default()
+                },// wgpu::Limits::default(),
                 memory_hints: Default::default(),
             }
             , None
@@ -78,82 +77,6 @@ impl<'a> StateBase<'a> for VertexIndexWithRenderState<'a> {
             desired_maximum_frame_latency: 2,
         };
 
-        let render_pipeline_layout = device
-            .create_pipeline_layout(
-                &wgpu::PipelineLayoutDescriptor { 
-                    label: Some("Render Pipeline"),
-                    bind_group_layouts: &[],
-                    push_constant_ranges: &[]
-                }
-            );
-        
-        let shader = device.create_shader_module(include_wgsl!("../colorful_triangle/colorful_shader.wgsl"));
-
-        let render_pipeline = device.create_render_pipeline(
-            &wgpu::RenderPipelineDescriptor {
-                label: Some("Render Pipeline"),
-                layout: Some(&render_pipeline_layout),
-                vertex: wgpu::VertexState { 
-                    module: &shader,
-                    entry_point: "vs",
-                    compilation_options: wgpu::PipelineCompilationOptions::default(),
-                    buffers: &[
-                        VertexWithIndex::buffer_layout()
-                    ]
-                },
-                fragment: Some(wgpu::FragmentState { 
-                    module: &shader,
-                    entry_point: "fs",
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format: config.format,
-                        blend: Some(wgpu::BlendState::REPLACE),
-                        write_mask: wgpu::ColorWrites::ALL
-                    })],
-                    compilation_options: wgpu::PipelineCompilationOptions::default()
-                }),
-                primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList, // 1.
-                    strip_index_format: None,
-                    front_face: wgpu::FrontFace::Ccw, // 2.
-                    cull_mode: Some(wgpu::Face::Back),
-                    // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
-                    polygon_mode: wgpu::PolygonMode::Fill,
-                    // Requires Features::DEPTH_CLIP_CONTROL
-                    unclipped_depth: false,
-                    // Requires Features::CONSERVATIVE_RASTERIZATION
-                    conservative: false,
-                },
-                depth_stencil: None, // 1.
-                multisample: wgpu::MultisampleState {
-                    count: 1, // 2.
-                    mask: !0, // 3.
-                    alpha_to_coverage_enabled: false, // 4.
-                },
-                multiview: None, // 5.
-                cache: None, // 6.
-            }
-        );
-
-        let vertex_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(&VertexWithIndex::VERTICES),
-                usage: wgpu::BufferUsages::VERTEX,
-            }
-        );
-
-        let num_vertices = VertexWithIndex::VERTICES.len() as u32;
-
-        let index_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Index Buffer"),
-                contents: bytemuck::cast_slice(VertexWithIndex::INDICES),
-                usage: wgpu::BufferUsages::INDEX,
-            }
-        );
-        let num_indices = VertexWithIndex::INDICES.len() as u32;
-        
-        surface.configure(&device,&config);
         let diffuse_bytes = include_bytes!("../img/utakata.jpeg");
         let diffuse_texture = texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "utakata")
             .expect("Texture Initial Error");
@@ -201,8 +124,84 @@ impl<'a> StateBase<'a> for VertexIndexWithRenderState<'a> {
                 label: Some("Diffuse_Bind_Group")
             }
         );
+
+        let shader = device.create_shader_module(include_wgsl!("texture.wgsl"));
+
+        let render_pipeline_layout = device
+            .create_pipeline_layout(
+                &wgpu::PipelineLayoutDescriptor { 
+                    label: Some("Render Pipeline"),
+                    bind_group_layouts: &[&texture_bind_group_layout],
+                    push_constant_ranges: &[]
+                }
+            );
+        
+        let render_pipeline = device.create_render_pipeline(
+            &wgpu::RenderPipelineDescriptor {
+                label: Some("Render Pipeline"),
+                layout: Some(&render_pipeline_layout),
+                vertex: wgpu::VertexState { 
+                    module: &shader,
+                    entry_point: "vs_main",
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    buffers: &[
+                        TextureWithVertex::vertex_buffer_layout()
+                    ]
+                },
+                fragment: Some(wgpu::FragmentState { 
+                    module: &shader,
+                    entry_point: "fs_main",
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: config.format,
+                        blend: Some(wgpu::BlendState::REPLACE),
+                        write_mask: wgpu::ColorWrites::ALL
+                    })],
+                    compilation_options: wgpu::PipelineCompilationOptions::default()
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList, // 1.
+                    strip_index_format: None,
+                    front_face: wgpu::FrontFace::Ccw, // 2.
+                    cull_mode: Some(wgpu::Face::Back),
+                    // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
+                    polygon_mode: wgpu::PolygonMode::Fill,
+                    // Requires Features::DEPTH_CLIP_CONTROL
+                    unclipped_depth: false,
+                    // Requires Features::CONSERVATIVE_RASTERIZATION
+                    conservative: false,
+                },
+                depth_stencil: None, // 1.
+                multisample: wgpu::MultisampleState {
+                    count: 1, // 2.
+                    mask: !0, // 3.
+                    alpha_to_coverage_enabled: false, // 4.
+                },
+                multiview: None, // 5.
+                cache: None, // 6.
+            }
+        );
         
 
+        
+
+        let vertex_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Vertex Buffer"),
+                contents: bytemuck::cast_slice(&TextureWithVertex::VERTICES),
+                usage: wgpu::BufferUsages::VERTEX,
+            }
+        );
+
+        let num_vertices = TextureWithVertex::VERTICES.len() as u32;
+
+        let index_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Index Buffer"),
+                contents: bytemuck::cast_slice(TextureWithVertex::INDICES),
+                usage: wgpu::BufferUsages::INDEX,
+            }
+        );
+        let num_indices = TextureWithVertex::INDICES.len() as u32;
         
         Self {
             window,
@@ -249,7 +248,7 @@ impl<'a> StateBase<'a> for VertexIndexWithRenderState<'a> {
             }
         );
 
-        let mut render_fn = || {
+        /* let mut render_fn = || */ {
             let mut render_pass = encoder.begin_render_pass(
                 &wgpu::RenderPassDescriptor {
                     label: Some("Render Pass"),
@@ -278,12 +277,21 @@ impl<'a> StateBase<'a> for VertexIndexWithRenderState<'a> {
             render_pass.set_index_buffer(self.index_buffer.slice(..),wgpu::IndexFormat::Uint16);
             //render_pass.draw(0..self.num_vertices, 0..1);
             render_pass.draw_indexed(0..self.num_indices, 0,0..1);
-        };
+        }/* ;
     
-        render_fn();
+        render_fn(); */
 
+        #[cfg(target_arch = "wasm32")] {
+            
+        }
+        
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
+        
+        #[cfg(target_arch = "wasm32")] {
+            
+        }
+
         Ok(())
     }
 }

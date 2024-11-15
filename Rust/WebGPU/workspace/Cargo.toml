@@ -1,5 +1,5 @@
 [package]
-name = "workspace"
+name = "research_wgpu"
 version = "0.1.0"
 edition = "2021"
 
@@ -30,9 +30,10 @@ console_log = "1.0"
 wgpu = { version = "22.0", features = ["webgl"]}
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4.30"
-web-sys = { version = "0.3", features = [
+web-sys = { version = "0.3.72" ,features = [
     "Document",
     "Window",
     "Element",
-    "HtmlCanvasElement"
+    "HtmlCanvasElement",
+    "HtmlBodyElement"
 ]}
